@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+    <title>group-manager Demo</title>
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <link rel="import" href="../group-manager.html">
+  </head>
+  <body>
+      <style>
+        body{
+          background-color: #E0E0E0;
+        }
+        .container{
+        }
+      </style>
+      <div class="container">
+        <template is="dom-bind">
+          <group-manager id="gm"></group-manager>
+        </template>
+      </div>
+    </body>
+	<script>
+      (function() {
+        window.addEventListener('WebComponentsReady', function () {
+          var insertedGroupID = '';
+          var insertedGroupDetail = '';
+          var gm = document.querySelector("group-manager");
+          
+          // test echo
+          console.log('__test_echo :: ' + gm.echo('ME'));
+          
+          // handle all event
+          gm.addEventListener('group-manager-success', function (e) {
+            if(e.detail.event == 'insertedGroupID'){
+              insertedGroupID = e.detail.id;
+            }
+            else if(e.detail.event == 'insertedGroupDetail'){
+              insertedGroupDetail = e.detail.id;
+            }
+            
+            console.log('__test_' + e.detail.event + ' :: ');
+            console.log(e.detail);
+          });
+          
+          // test checkGroupExist
+          //gm.checkGroupExist('personInHost', [{'HostID':'55d4430f8a8d844c1f98f64c'}]);
+          
+          // test checkGroupExist
+          //gm.checkGroupDetailExist('55dae181945b015813e1d56f', '654961265', [{'PersonType':'student'}]);
+          
+          // test insertGroup
+          //gm.insertGroup('personInHost', 'คนที่อยู่ใน Host', [{'HostID':'123'}]);
+          
+          // test insertGroupDetail
+          //gm.insertGroupDetail('55dae181945b015813e1d56f', '123', 
+          //  [{'PersonType':'student'},{'StartDate':'2015-08-24T09:19:50.856Z','EndDate':null}]
+          //);
+          
+          // test updateGroup
+          //gm.updateGroup('55dea8e69572d0c409ce317c', [{'HostID':'666'}]);
+          
+          // test updateGroupDetail
+          //gm.updateGroupDetail('55dd44e26312946c185adef9', [{'PersonType':'teacher'}]);
+          
+          // test deleteGroup
+          //gm.deleteGroup('55dae181945b015813e1d56f');
+          
+          // test deleteGroupDetail
+          //gm.deleteGroupDetail('55dae3dc945b015813e1d573');
+          
+        });
+      })();
+    </script>
+</html>

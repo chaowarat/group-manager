@@ -1,0 +1,21 @@
+{
+  "name": "group-manager",
+  "version": "1.0.0",
+  "authors": [
+    "Anonymous <anonymous@example.com>"
+  ],
+  "keywords": [
+    "web-component",
+    "polymer",
+    "group-manager"
+  ],
+  "main": "group-manager.html",
+  "ignore": [
+    "/.*",
+    "/test/"
+  ],
+  "dependencies": {
+    "polymer": "Polymer/polymer#^1.0.0",
+	"iron-ajax": "PolymerElements/iron-ajax#~1.0.4"
+  }
+}

@@ -1,0 +1,225 @@
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../iron-ajax/iron-ajax.html">
+
+<dom-module id="group-manager">
+    <template>
+	    <iron-ajax id="groupExist" 
+        handle-as="json"
+        on-response="_handleGroupExist">
+      </iron-ajax>
+      <iron-ajax id="groupDetailExist" 
+        handle-as="json"
+        on-response="_handleGroupDetailExist">
+      </iron-ajax>
+      <iron-ajax id="insertGroupAjax" 
+        handle-as="json"
+        method="POST"
+        content-type="application/json"
+        on-response="_handleInsertGroup">
+      </iron-ajax>
+      <iron-ajax id="insertGroupDetailAjax" 
+        handle-as="json"
+        method="POST"
+        content-type="application/json"
+        on-response="_handleInsertGroupDetail">
+      </iron-ajax>
+      <iron-ajax id="updateGroupAjax" 
+        handle-as="json"
+        method="PUT"
+        content-type="application/json"
+        on-response="_handleUpdateGroup">
+      </iron-ajax>
+      <iron-ajax id="updateGroupDetailAjax" 
+        handle-as="json"
+        method="PUT"
+        content-type="application/json"
+        on-response="_handleUpdateGroupDetail">
+      </iron-ajax>
+      <iron-ajax id="deleteGroupDetailAjax" 
+        handle-as="json"
+        method="DELETE"
+        content-type="application/json"
+        on-response="_handleDeleteGroupDetail">
+      </iron-ajax>
+      <iron-ajax id="deleteGroupAjax" 
+        handle-as="json"
+        method="DELETE"
+        content-type="application/json"
+        on-response="_handleDeleteGroup">
+      </iron-ajax>
+      <iron-ajax id="workerSelect" 
+        handle-as="json"
+        on-response="_handleWorkerSelect">
+      </iron-ajax>
+      <iron-ajax id="workerDelete" 
+        handle-as="json"
+        method="DELETE"
+        content-type="application/json"
+        on-response="_handleWorkerDelete">
+      </iron-ajax>
+    </template>
+</dom-module>
+
+<script>
+  Polymer({
+    is: 'group-manager',
+    properties: {
+      groupID: String,
+      groupDetailID: String,
+      deleteQueue: Array
+    },
+    ready: function() {
+		
+    },
+    echo: function(text){
+      return 'Hello ' + text;
+    },
+  	checkGroupExist: function(relationType, options){
+  	  if(!options){
+  	    options = [];
+  	  }
+  	  var query = {"where":{"and":[{"relationType":relationType}]},"fields":["id"]};
+    	for(var i = 0; i < options.length; i++){
+    	  query.where.and.push(options[i]);
+    	}
+  		this.$.groupExist.url = "/api/Groups/?filter=" + encodeURI(JSON.stringify(query));		
+  		this.$.groupExist.generateRequest();
+  	},
+  	_handleGroupExist: function(){
+  		var response = this.$.groupExist.lastResponse[0];
+  		response['event'] = "checkGroupExist";
+  		this.fire('group-manager-success', response);
+  	},
+  	checkGroupDetailExist: function(GroupID, RelatedID, options){
+  	  if(!options){
+  	    options = [];
+  	  }
+  	  var query = {"where":{"and":[{"GroupID":GroupID},{"RelatedID":RelatedID}]},"fields":["id"]};
+    	for(var i = 0; i < options.length; i++){
+    	  query.where.and.push(options[i]);
+    	}
+  		this.$.groupDetailExist.url = "/api/GroupDetails/?filter=" + encodeURI(JSON.stringify(query));		
+  		this.$.groupDetailExist.generateRequest();
+  	},
+  	_handleGroupDetailExist: function(){
+  		var response = this.$.groupDetailExist.lastResponse[0];
+  		response['event'] = "checkGroupDetailExist";
+  		this.fire('group-manager-success', response);
+  	},
+  	insertGroup: function(relationType, relationDesc, options){
+  	  if(!relationType || !relationDesc){
+  	    return null;
+  	  }
+  	  if(!options){
+  	    options = [];
+  	  }
+  		var obj = {"relationType": relationType,"relationDesc": relationDesc};
+  		for(var i = 0; i < options.length; i++){
+    	  var key = Object.keys(options[i])[0];
+    	  obj[key] = options[i][key];
+    	}
+    	this.$.insertGroupAjax.url = "/api/Groups";
+			this.$.insertGroupAjax.body = JSON.stringify(obj);		
+			this.$.insertGroupAjax.generateRequest();
+  	},
+  	_handleInsertGroup: function(){
+  	  var response = this.$.insertGroupAjax.lastResponse;
+  		response['event'] = "insertGroup";
+  		this.fire('group-manager-success', response);
+  	},
+  	insertGroupDetail: function(GroupID, RelatedID, options){
+  	  if(!GroupID || !RelatedID){
+  	    return null;
+  	  }
+  	  if(!options){
+  	    options = [];
+  	  }
+  		var obj = {"GroupID": GroupID,"RelatedID": RelatedID};
+  		for(var i = 0; i < options.length; i++){
+    	  var key = Object.keys(options[i])[0];
+    	  obj[key] = options[i][key];
+    	}
+    	this.$.insertGroupDetailAjax.url = "/api/GroupDetails";
+			this.$.insertGroupDetailAjax.body = JSON.stringify(obj);		
+			this.$.insertGroupDetailAjax.generateRequest();
+  	},
+  	_handleInsertGroupDetail: function(){
+  	  var response = this.$.insertGroupDetailAjax.lastResponse;
+  		response['event'] = "insertGroupDetail";
+  		this.fire('group-manager-success', response);
+  	},
+  	updateGroup: function(id, options){
+  	  var obj = {};
+  		for(var i = 0; i < options.length; i++){
+    	  var key = Object.keys(options[i])[0];
+    	  obj[key] = options[i][key];
+    	}
+  	  this.$.updateGroupAjax.url = "/api/Groups/" + id;
+  	  this.$.updateGroupAjax.body = JSON.stringify(obj);
+  	  this.$.updateGroupAjax.generateRequest();
+  	},
+  	_handleUpdateGroup: function(){
+  	  var response = this.$.updateGroupAjax.lastResponse;
+  		response['event'] = "updateGroup";
+  		this.fire('group-manager-success', response);
+  	},
+  	updateGroupDetail: function(id, options){
+  	  var obj = {};
+  		for(var i = 0; i < options.length; i++){
+    	  var key = Object.keys(options[i])[0];
+    	  obj[key] = options[i][key];
+    	}
+  	  this.$.updateGroupDetailAjax.url = "/api/GroupDetails/" + id;
+  	  this.$.updateGroupDetailAjax.body = JSON.stringify(obj);
+  	  this.$.updateGroupDetailAjax.generateRequest();
+  	},
+  	_handleUpdateGroupDetail: function(){
+  	  var response = this.$.updateGroupDetailAjax.lastResponse;
+  		response['event'] = "updateGroupDetail";
+  		this.fire('group-manager-success', response);
+  	},
+  	deleteGroup: function(id){
+  	  this.groupID = id;
+      var query = {"where":{"GroupID":this.groupID},"fields":["id"]};
+  		this.$.workerSelect.url = "/api/GroupDetails/?filter=" + encodeURI(JSON.stringify(query));		
+  		this.$.workerSelect.generateRequest();
+  	},
+  	_handleWorkerSelect: function(){
+  	  var tmp = this.$.workerSelect.lastResponse.map(function(obj){
+  		  return obj.id;
+  		});
+  		this.deleteQueue = tmp.slice();
+  	  this._workerDelete(this.deleteQueue.shift());
+  	},
+  	_workerDelete: function(id){
+  	  this.$.workerDelete.url = "/api/GroupDetails/" + id;
+  	  this.$.workerDelete.generateRequest();
+  	},
+  	_handleWorkerDelete: function(){
+  	  if(this.deleteQueue.length > 0){
+  	    this._workerDelete(this.deleteQueue.shift());
+  	  }
+  	  else if(this.deleteQueue.length == 0){
+  	    this.$.deleteGroupAjax.url = "/api/Groups/" + this.groupID;
+  	    this.$.deleteGroupAjax.generateRequest();
+  	  }
+  	},
+  	_handleDeleteGroup: function(){
+      var response = {};
+  		response['event'] = "deleteGroup";
+  		response['id'] = this.groupID;
+  		this.fire('group-manager-success', response);
+  	},
+  	deleteGroupDetail: function(id){
+  	  this.groupDetailID = id;
+  	  this.$.deleteGroupDetailAjax.url = "/api/GroupDetails/" + id;
+  	  this.$.deleteGroupDetailAjax.generateRequest();
+  	},
+  	_handleDeleteGroupDetail: function(){
+  	  var response = {};
+  		response['event'] = "deleteGroupDetail";
+  		response['id'] = this.groupDetailID;
+  		this.fire('group-manager-success', response);
+  	},
+  });
+</script>
