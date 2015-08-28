@@ -66,7 +66,9 @@
     properties: {
       groupID: String,
       groupDetailID: String,
-      deleteQueue: Array
+      deleteQueue: Array,
+	  progMax: Number,
+	  progValue: Number
     },
     ready: function() {
 		
@@ -189,9 +191,19 @@
   		  return obj.id;
   		});
   		this.deleteQueue = tmp.slice();
+	    this.progMax = this.deleteQueue.length;	  	  
   	  this._workerDelete(this.deleteQueue.shift());
   	},
+	_updateProgress: function(){
+	  if(!this.progValue){
+	    this.progValue = 0;
+	  }
+	  this.progValue += 1;
+	  var perc = (this.progValue*100)/this.progMax;
+	  this.fire('group-manager-progress', perc);
+	},
   	_workerDelete: function(id){
+	  this.async(this._updateProgress, true);
   	  this.$.workerDelete.url = "/api/GroupDetails/" + id;
   	  this.$.workerDelete.generateRequest();
   	},

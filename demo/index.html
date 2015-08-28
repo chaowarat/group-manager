@@ -17,6 +17,7 @@
       </style>
       <div class="container">
         <template is="dom-bind">
+          <div id="progress">Progress. 0</div>
           <group-manager id="gm"></group-manager>
         </template>
       </div>
@@ -31,7 +32,7 @@
           // test echo
           console.log('__test_echo :: ' + gm.echo('ME'));
           
-          // handle all event
+          // handle all success event
           gm.addEventListener('group-manager-success', function (e) {
             if(e.detail.event == 'insertedGroupID'){
               insertedGroupID = e.detail.id;
@@ -44,10 +45,15 @@
             console.log(e.detail);
           });
           
+          // handle progress event
+          gm.addEventListener('group-manager-progress', function (e) {
+            document.querySelector("#progress").innerText = 'Progress. ' + e.detail;
+          });
+          
           // test checkGroupExist
           //gm.checkGroupExist('personInHost', [{'HostID':'55d4430f8a8d844c1f98f64c'}]);
           
-          // test checkGroupExist
+          // test checkGroupDetailExist
           //gm.checkGroupDetailExist('55dae181945b015813e1d56f', '654961265', [{'PersonType':'student'}]);
           
           // test insertGroup
@@ -65,7 +71,7 @@
           //gm.updateGroupDetail('55dd44e26312946c185adef9', [{'PersonType':'teacher'}]);
           
           // test deleteGroup
-          //gm.deleteGroup('55dae181945b015813e1d56f');
+          //gm.deleteGroup('55dffa9190d568281bfb10b3');
           
           // test deleteGroupDetail
           //gm.deleteGroupDetail('55dae3dc945b015813e1d573');
