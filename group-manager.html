@@ -57,6 +57,19 @@
         content-type="application/json"
         on-response="_handleWorkerDelete">
       </iron-ajax>
+      
+      <iron-ajax id="getTreeAjax" 
+        handle-as="json"
+        on-response="_handleGetTree">
+      </iron-ajax>
+      <iron-ajax id="getTreeDetailAjax" 
+        handle-as="json"
+        on-response="_handleGetTreeDetail">
+      </iron-ajax>
+      <iron-ajax id="checkTreeAjax" 
+        handle-as="json"
+        on-response="_handleCheckTree">
+      </iron-ajax>
     </template>
 </dom-module>
 
@@ -67,15 +80,119 @@
       groupID: String,
       groupDetailID: String,
       deleteQueue: Array,
-	  progMax: Number,
-	  progValue: Number
+	    progMax: Number,
+	    progValue: Number,
+	    tree: Object,
+	    requestQueue: Array
     },
     ready: function() {
-		
+		  this._getTree('55e5471cb3db5be019b0e6a6');
     },
     echo: function(text){
       return 'Hello ' + text;
     },
+    _insertTree: function(detail){
+      if(this.tree.detail.length > 0){
+        var tmp = JSON.parse(JSON.stringify(this.tree.detail));
+        this._findAndInsert(this.tree, '', null, tmp);
+        console.log(this.tree)
+      }
+      else{
+        this.tree.detail = detail;
+      }
+    },
+    _findAndInsert: function(obj, stack, id, detail){
+      for (var property in obj) {
+        if (obj.hasOwnProperty(property)) {
+          if (typeof obj[property] == "object") {
+            this._findAndInsert(obj[property], stack + '.' + property, id, detail);
+          } else {
+            if(id){
+              if(property == 'id'){
+                if(obj[property] == id){
+                  obj.detail.push(detail);
+                }
+              }
+            }
+            else{
+              if(obj.detail.length == 0){
+                obj.detail = detail;
+              }
+            }
+          }
+        }
+      }
+    },
+    _getTree: function(id){
+      var query = {"where":{"id":id}};
+      this.$.getTreeAjax.url = "http://localhost:3000/api/Groups/?filter=" + encodeURI(JSON.stringify(query));
+  		this.$.getTreeAjax.generateRequest();
+    },
+    _handleGetTree: function(){
+      var response = this.$.getTreeAjax.lastResponse;
+      if(!this.requestQueue){
+        this.requestQueue = [];
+      }
+      if(response){
+        response = response[0];
+        response['detail'] = [];
+        if(!this.tree){
+          this.tree = JSON.parse(JSON.stringify(response));
+          this._getTreeDetail(this.tree.id);
+        }
+        else{
+          // find and append
+          this._insertTree(response);
+          this.requestQueue.push(response);
+          if(this.requestQueue.length > 0){
+            var detail = this.requestQueue.shift();
+            this._getTreeDetail(detail.id);
+          }
+        }
+      }
+    },
+    _getTreeDetail: function(GroupID){
+      var query = {"where":{"GroupID":GroupID},"fields":["GroupID","id", "RelatedID"]};
+      this.$.getTreeDetailAjax.url = "http://localhost:3000/api/GroupDetails/?filter=" + encodeURI(JSON.stringify(query));		
+  		this.$.getTreeDetailAjax.generateRequest();
+    },
+    _handleGetTreeDetail: function(){
+      var response = this.$.getTreeDetailAjax.lastResponse;
+      for(var i = 0; i < response.length; i++){
+        this.requestQueue.push(response[i]);
+      }
+      if(this.requestQueue.length > 0){
+        var detail = this.requestQueue[0];
+        this._checkTree(detail.RelatedID);
+      }
+    },
+    _checkTree: function(id){
+      var query = {"where":{"id":id}};
+      this.$.checkTreeAjax.url = "http://localhost:3000/api/Groups/?filter=" + encodeURI(JSON.stringify(query));
+  		this.$.checkTreeAjax.generateRequest();
+    },
+    _handleCheckTree: function(){
+      var response = this.$.checkTreeAjax.lastResponse;
+      if(response){
+        if(response.length > 0){ // detail is group
+          this.requestQueue.shift();
+          response = response[0];
+          this._getTree(response.id);
+        }
+        else{
+          if(this.requestQueue.length > 0){
+            var detail = this.requestQueue.shift();
+            detail['detail'] = [];
+            this._findAndInsert(this.tree, '', detail.GroupID, detail);
+            console.log(this.tree)
+            this._getTreeDetail(detail.RelatedID);
+          }
+        }
+      }
+    },
+    
+    
+    
   	checkGroupExist: function(relationType, options){
   	  if(!options){
   	    options = [];
