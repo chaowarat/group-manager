@@ -40,6 +40,10 @@
             else if(e.detail.event == 'insertedGroupDetail'){
               insertedGroupDetail = e.detail.id;
             }
+            else if(e.detail.event == 'getTree'){
+              // test checkTreeExist
+              gm.checkTreeExist("665", null);
+            }
             
             console.log('__test_' + e.detail.event + ' :: ');
             console.log(e.detail);
@@ -75,6 +79,9 @@
           
           // test deleteGroupDetail
           //gm.deleteGroupDetail('55dae3dc945b015813e1d573');
+          
+          // test getTree
+          gm.getTree("55e5471cb3db5be019b0e6a6");
           
         });
       })();

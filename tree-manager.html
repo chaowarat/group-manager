@@ -1,0 +1,202 @@
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../iron-ajax/iron-ajax.html">
+
+<dom-module id="tree-manager">
+    <template>
+      <iron-ajax id="getTreeAjax" 
+        handle-as="json"
+        on-response="_handleGetTree">
+      </iron-ajax>
+      <iron-ajax id="getTreeDetailAjax" 
+        handle-as="json"
+        on-response="_handleGetTreeDetail">
+      </iron-ajax>
+      <iron-ajax id="checkTreeAjax" 
+        handle-as="json"
+        on-response="_handleCheckTree">
+      </iron-ajax>
+      
+      <iron-ajax id="checkTreeExistAjax" 
+        handle-as="json"
+        on-response="_handleCheckTreeExist">
+      </iron-ajax>
+    </template>
+</dom-module>
+
+<script>
+  Polymer({
+    is: 'tree-manager',
+    properties: {
+	    tree: Object,
+	    requestQueue: Array,
+	    tmpGroupDetail: Object,
+	    groups: Array,
+	    groupDetails: Array
+    },
+    ready: function() {
+    },
+    echo: function(text){
+      return 'Hello ' + text;
+    },
+    _findAndInsert: function(obj, stack, id, detail){
+      for (var property in obj) {
+        if (obj.hasOwnProperty(property)) {
+          if (typeof obj[property] == "object") {
+            this._findAndInsert(obj[property], stack + '.' + property, id, detail);
+          } else {
+            if(id){
+              if(property == 'id'){
+                if(obj[property] == id){
+                  obj.detail.push(JSON.parse(JSON.stringify(detail)));
+                  return;
+                }
+              }
+            }
+            else{
+              if(obj.detail){
+                obj.detail.push(JSON.parse(JSON.stringify(detail)));
+                return;
+              }
+            }
+          }
+        }
+      }
+    },
+    getTree: function(id){
+      this.requestQueue = [];
+      var query = {"where":{"id":id}};
+      this.$.getTreeAjax.url = "http://localhost:3000/api/Groups/?filter=" + encodeURI(JSON.stringify(query));
+  		this.$.getTreeAjax.generateRequest();
+    },
+    _handleGetTree: function(){
+      var response = this.$.getTreeAjax.lastResponse;
+      if(!this.requestQueue){
+        this.requestQueue = [];
+      }
+      if(response){
+        response = response[0];
+        response['detail'] = [];
+        this.requestQueue.push(response);
+        
+        if(!this.tree){
+          this.tree = JSON.parse(JSON.stringify(response));
+        }
+        this._nextTask();
+      }
+    },
+    _getTreeDetail: function(GroupID){
+      var query = {"where":{"GroupID":GroupID},"fields":["GroupID","id", "RelatedID"]};
+      this.$.getTreeDetailAjax.url = "http://localhost:3000/api/GroupDetails/?filter=" + encodeURI(JSON.stringify(query));		
+  		this.$.getTreeDetailAjax.generateRequest();
+    },
+    _handleGetTreeDetail: function(){
+      var response = this.$.getTreeDetailAjax.lastResponse;
+      for(var i = 0; i < response.length; i++){
+        this.requestQueue.push(response[i]);
+      }
+      this._nextTask();
+    },
+    _checkTree: function(id){
+      var query = {"where":{"id":id}};
+      this.$.checkTreeAjax.url = "http://localhost:3000/api/Groups/?filter=" + encodeURI(JSON.stringify(query));
+  		this.$.checkTreeAjax.generateRequest();
+    },
+    _handleCheckTree: function(){
+      var response = this.$.checkTreeAjax.lastResponse;
+      if(response){
+        if(response.length > 0){ // detail is group
+          response = response[0];
+          response['detail'] = [];
+          response['groupDetailID'] = this.tmpGroupDetail.id;
+          response['groupDetailGroupID'] = this.tmpGroupDetail.GroupID;
+          response['groupDetailRelatedID'] = this.tmpGroupDetail.RelatedID;
+            
+          this._findAndInsert(this.tree, '', null, response);
+          this.requestQueue.push(response);
+        }
+        else{
+          this._findAndInsert(this.tree, '', this.tmpGroupDetail.GroupID, this.tmpGroupDetail);
+        }
+        this._nextTask();
+      }
+    },
+    _nextTask: function(){
+      if(this.requestQueue.length > 0){
+        var task = this.requestQueue.shift();
+        if(task){
+          if(task.RelatedID){
+            this.tmpGroupDetail = JSON.parse(JSON.stringify(task));
+            this._checkTree(task.RelatedID);
+          }
+          else{
+            this._getTreeDetail(task.id);
+          }
+        }
+      }
+      else{ // all checked
+        this._finishGetTree();
+      }
+    },
+    _finishGetTree: function(){
+      this.groups = [];
+      this.groupDetails = [];
+      this._countNode(this.tree);
+      this.fire('tree-manager-success', {"event":"getTree","result":this.tree});
+    },
+    _countNode: function(obj, stack){
+      for (var property in obj) {
+        if (obj.hasOwnProperty(property)) {
+          if (typeof obj[property] == "object") {
+            if(obj.relationType){
+              this.groups.push(obj.id);
+            }
+            if(obj.groupDetailGroupID){
+              if(this.groupDetails.indexOf(obj.groupDetailID) == -1){
+                this.groupDetails.push(obj.groupDetailID);
+              }
+            }
+            this._countNode(obj[property], stack + '.' + property);
+          }
+          else{
+            if(property == 'GroupID'){
+              if(this.groupDetails.indexOf(obj.id) == -1){
+                this.groupDetails.push(obj.id);
+              }
+            }
+          }
+        }
+      }
+    },
+    checkTreeExist: function(optionalRelatedID, options){
+      if(this.tree){
+        var query = {"where":{"and":[{"EndDate": null}]},"fields":[]};
+    	  if(!options){
+    	    options = [];
+    	  }
+    	  if(optionalRelatedID){
+    	    query.where.and.push({"RelatedID":optionalRelatedID});
+    	  }
+      	for(var i = 0; i < options.length; i++){
+      	  query.where.and.push(options[i]);
+      	}
+    		this.$.checkTreeExistAjax.url = "http://localhost:3000/api/GroupDetails/?filter=" + encodeURI(JSON.stringify(query));		
+    		this.$.checkTreeExistAjax.generateRequest();
+      }
+      else{
+        this.fire('tree-manager-success', {"event":"checkTreeExist","result":"Tree is undefind, call getTree(id) first"});
+      }
+  	},
+  	_handleCheckTreeExist: function(){
+  	  var response = this.$.checkTreeExistAjax.lastResponse;
+  	  for(var i = 0; i < response.length; i++){
+  	    if(this.groups.indexOf(response[i].GroupID) != -1){
+  	      response[i]['isExist'] = true;
+  	    }
+  	    else{
+  	      response[i]['isExist'] = false;
+  	    }
+  	  }
+  	  this.fire('tree-manager-success', {"event":"checkTreeExist","result":response});
+  	}
+  });
+</script>

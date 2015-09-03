@@ -1,5 +1,6 @@
 <link rel="import" href="../polymer/polymer.html">
 <link rel="import" href="../iron-ajax/iron-ajax.html">
+<link rel="import" href="./tree-manager.html">
 
 <dom-module id="group-manager">
     <template>
@@ -58,18 +59,7 @@
         on-response="_handleWorkerDelete">
       </iron-ajax>
       
-      <iron-ajax id="getTreeAjax" 
-        handle-as="json"
-        on-response="_handleGetTree">
-      </iron-ajax>
-      <iron-ajax id="getTreeDetailAjax" 
-        handle-as="json"
-        on-response="_handleGetTreeDetail">
-      </iron-ajax>
-      <iron-ajax id="checkTreeAjax" 
-        handle-as="json"
-        on-response="_handleCheckTree">
-      </iron-ajax>
+      <tree-manager id="treeM" on-tree-manager-success="_handleTreeSuccess"></tree-manager>
     </template>
 </dom-module>
 
@@ -81,150 +71,22 @@
       groupDetailID: String,
       deleteQueue: Array,
 	    progMax: Number,
-	    progValue: Number,
-	    tree: Object,
-	    requestQueue: Array,
-	    tmpGroupDetail: Object,
-	    groups: Array,
-	    groupDetails: Array
+	    progValue: Number
     },
     ready: function() {
-      this.requestQueue = [];
-		  this._getTree('55e5471cb3db5be019b0e6a6');
     },
     echo: function(text){
       return 'Hello ' + text;
     },
-    _findAndInsert: function(obj, stack, id, detail){
-      for (var property in obj) {
-        if (obj.hasOwnProperty(property)) {
-          if (typeof obj[property] == "object") {
-            this._findAndInsert(obj[property], stack + '.' + property, id, detail);
-          } else {
-            if(id){
-              if(property == 'id'){
-                if(obj[property] == id){
-                  obj.detail.push(JSON.parse(JSON.stringify(detail)));
-                  return;
-                }
-              }
-            }
-            else{
-              if(obj.detail){
-                obj.detail.push(JSON.parse(JSON.stringify(detail)));
-                return;
-              }
-            }
-          }
-        }
-      }
+    _handleTreeSuccess: function(e){
+      this.fire('group-manager-success', e.detail);
     },
-    _getTree: function(id){
-      var query = {"where":{"id":id}};
-      this.$.getTreeAjax.url = "http://localhost:3000/api/Groups/?filter=" + encodeURI(JSON.stringify(query));
-  		this.$.getTreeAjax.generateRequest();
+    getTree: function(id){
+      this.$.treeM.getTree(id);
     },
-    _handleGetTree: function(){
-      var response = this.$.getTreeAjax.lastResponse;
-      if(!this.requestQueue){
-        this.requestQueue = [];
-      }
-      if(response){
-        response = response[0];
-        response['detail'] = [];
-        this.requestQueue.push(response);
-        
-        if(!this.tree){
-          this.tree = JSON.parse(JSON.stringify(response));
-        }
-        this._nextTask();
-      }
-    },
-    _getTreeDetail: function(GroupID){
-      var query = {"where":{"GroupID":GroupID},"fields":["GroupID","id", "RelatedID"]};
-      this.$.getTreeDetailAjax.url = "http://localhost:3000/api/GroupDetails/?filter=" + encodeURI(JSON.stringify(query));		
-  		this.$.getTreeDetailAjax.generateRequest();
-    },
-    _handleGetTreeDetail: function(){
-      var response = this.$.getTreeDetailAjax.lastResponse;
-      for(var i = 0; i < response.length; i++){
-        this.requestQueue.push(response[i]);
-      }
-      this._nextTask();
-    },
-    _checkTree: function(id){
-      var query = {"where":{"id":id}};
-      this.$.checkTreeAjax.url = "http://localhost:3000/api/Groups/?filter=" + encodeURI(JSON.stringify(query));
-  		this.$.checkTreeAjax.generateRequest();
-    },
-    _handleCheckTree: function(){
-      var response = this.$.checkTreeAjax.lastResponse;
-      if(response){
-        if(response.length > 0){ // detail is group
-          response = response[0];
-          response['detail'] = [];
-          response['groupDetailID'] = this.tmpGroupDetail.id;
-          response['groupDetailGroupID'] = this.tmpGroupDetail.GroupID;
-          response['groupDetailRelatedID'] = this.tmpGroupDetail.RelatedID;
-            
-          this._findAndInsert(this.tree, '', null, response);
-          this.requestQueue.push(response);
-        }
-        else{
-          this._findAndInsert(this.tree, '', this.tmpGroupDetail.GroupID, this.tmpGroupDetail);
-        }
-        this._nextTask();
-      }
-    },
-    _nextTask: function(){
-      if(this.requestQueue.length > 0){
-        var task = this.requestQueue.shift();
-        if(task){
-          if(task.RelatedID){
-            this.tmpGroupDetail = JSON.parse(JSON.stringify(task));
-            this._checkTree(task.RelatedID);
-          }
-          else{
-            this._getTreeDetail(task.id);
-          }
-        }
-      }
-      else{ // all checked
-        this._finishGetTree();
-      }
-    },
-    _finishGetTree: function(){
-      console.log(this.tree)
-      this.groups = [];
-      this.groupDetails = [];
-      this._countNode(this.tree);
-      //console.log(this.groups)
-      console.log(this.groupDetails)
-    },
-    _countNode: function(obj, stack){
-      for (var property in obj) {
-        if (obj.hasOwnProperty(property)) {
-          if (typeof obj[property] == "object") {
-            if(obj.relationType){
-              this.groups.push(obj.id);
-            }
-            if(obj.groupDetailGroupID){
-              if(this.groupDetails.indexOf(obj.groupDetailID) == -1){
-                this.groupDetails.push(obj.groupDetailID);
-              }
-            }
-            this._countNode(obj[property], stack + '.' + property);
-          }
-          else{
-            if(property == 'GroupID'){
-              if(this.groupDetails.indexOf(obj.id) == -1){
-                this.groupDetails.push(obj.id);
-              }
-            }
-          }
-        }
-      }
-    },
+    checkTreeExist: function(optionalRelatedID, options){
+      this.$.treeM.checkTreeExist(optionalRelatedID, options);
+  	},
   	checkGroupExist: function(relationType, options){
   	  if(!options){
   	    options = [];
@@ -343,7 +205,7 @@
 	    this.progMax = this.deleteQueue.length;	  	  
   	  this._workerDelete(this.deleteQueue.shift());
   	},
-	_updateProgress: function(){
+  	_updateProgress: function(){
 	  if(!this.progValue){
 	    this.progValue = 0;
 	  }
