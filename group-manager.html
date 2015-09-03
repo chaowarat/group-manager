@@ -84,7 +84,9 @@
 	    progValue: Number,
 	    tree: Object,
 	    requestQueue: Array,
-	    tmpGroupDetail: Object
+	    tmpGroupDetail: Object,
+	    groups: Array,
+	    groupDetails: Array
     },
     ready: function() {
       this.requestQueue = [];
@@ -150,6 +152,30 @@
       }
       this._nextTask();
     },
+    _checkTree: function(id){
+      var query = {"where":{"id":id}};
+      this.$.checkTreeAjax.url = "http://localhost:3000/api/Groups/?filter=" + encodeURI(JSON.stringify(query));
+  		this.$.checkTreeAjax.generateRequest();
+    },
+    _handleCheckTree: function(){
+      var response = this.$.checkTreeAjax.lastResponse;
+      if(response){
+        if(response.length > 0){ // detail is group
+          response = response[0];
+          response['detail'] = [];
+          response['groupDetailID'] = this.tmpGroupDetail.id;
+          response['groupDetailGroupID'] = this.tmpGroupDetail.GroupID;
+          response['groupDetailRelatedID'] = this.tmpGroupDetail.RelatedID;
+            
+          this._findAndInsert(this.tree, '', null, response);
+          this.requestQueue.push(response);
+        }
+        else{
+          this._findAndInsert(this.tree, '', this.tmpGroupDetail.GroupID, this.tmpGroupDetail);
+        }
+        this._nextTask();
+      }
+    },
     _nextTask: function(){
       if(this.requestQueue.length > 0){
         var task = this.requestQueue.shift();
@@ -164,32 +190,39 @@
         }
       }
       else{ // all checked
-        console.log(this.tree)
+        this._finishGetTree();
       }
     },
-    _checkTree: function(id){
-      var query = {"where":{"id":id}};
-      this.$.checkTreeAjax.url = "http://localhost:3000/api/Groups/?filter=" + encodeURI(JSON.stringify(query));
-  		this.$.checkTreeAjax.generateRequest();
+    _finishGetTree: function(){
+      console.log(this.tree)
+      this.groups = [];
+      this.groupDetails = [];
+      this._countNode(this.tree);
+      //console.log(this.groups)
+      console.log(this.groupDetails)
     },
-    _handleCheckTree: function(){
-      var response = this.$.checkTreeAjax.lastResponse;
-      if(response){
-        if(response.length > 0){ // detail is group
-          //console.log(detail)
-          response = response[0];
-          response['detail'] = [];
-          response['groupDetailID'] = this.tmpGroupDetail.id;
-          response['groupDetailGroupID'] = this.tmpGroupDetail.GroupID;
-          response['groupDetailRelatedID'] = this.tmpGroupDetail.RelatedID;
-            
-          this._findAndInsert(this.tree, '', null, response);
-          this.requestQueue.push(response);
+    _countNode: function(obj, stack){
+      for (var property in obj) {
+        if (obj.hasOwnProperty(property)) {
+          if (typeof obj[property] == "object") {
+            if(obj.relationType){
+              this.groups.push(obj.id);
+            }
+            if(obj.groupDetailGroupID){
+              if(this.groupDetails.indexOf(obj.groupDetailID) == -1){
+                this.groupDetails.push(obj.groupDetailID);
+              }
+            }
+            this._countNode(obj[property], stack + '.' + property);
+          }
+          else{
+            if(property == 'GroupID'){
+              if(this.groupDetails.indexOf(obj.id) == -1){
+                this.groupDetails.push(obj.id);
+              }
+            }
+          }
         }
-        else{
-          this._findAndInsert(this.tree, '', this.tmpGroupDetail.GroupID, this.tmpGroupDetail);
-        }
-        this._nextTask();
       }
     },
   	checkGroupExist: function(relationType, options){
