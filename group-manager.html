@@ -59,6 +59,15 @@
         on-response="_handleWorkerDelete">
       </iron-ajax>
       
+      <iron-ajax id="getGroupDetails" 
+        handle-as="json"
+        on-response="_handleGetGroupDetails">
+      </iron-ajax>
+      <iron-ajax id="checkGroupDetailsInGroup" 
+        handle-as="json"
+        on-response="_handleCheckGroupDetailsInGroup">
+      </iron-ajax>
+      
       <tree-manager id="treeM" on-tree-manager-success="_handleTreeSuccess"></tree-manager>
     </template>
 </dom-module>
@@ -74,6 +83,7 @@
 	    progValue: Number
     },
     ready: function() {
+      this._getGroupDetails('55e5471cb3db5be019b0e6a6');
     },
     echo: function(text){
       return 'Hello ' + text;
@@ -190,7 +200,40 @@
   		response['event'] = "updateGroupDetail";
   		this.fire('group-manager-success', response);
   	},
+  	
   	deleteGroup: function(id){
+  	  this.groupID = id;
+  	  this._getGroupDetails(id);
+  	},
+  	_getGroupDetails: function(id){
+  	  var query = {"where":{"GroupID":id},"fields":["RelatedID"]};
+  		this.$.getGroupDetails.url = "/api/GroupDetails/?filter=" + encodeURI(JSON.stringify(query));		
+  		this.$.getGroupDetails.generateRequest();
+  	},
+  	_handleGetGroupDetails: function(){
+  	  var response = this.$.getGroupDetails.lastResponse;
+  	  var tmp = response.map(function(obj){
+  	    return obj.RelatedID;
+  	  });
+  	  this._checkGroupDetailsInGroup(tmp);
+  	},
+  	_checkGroupDetailsInGroup: function(groupDetails){
+  	  var query = {"where":{"id":{"inq":groupDetails}},"fields":[]};
+  		this.$.checkGroupDetailsInGroup.url = "/api/Groups/?filter=" + encodeURI(JSON.stringify(query));		
+  		this.$.checkGroupDetailsInGroup.generateRequest();
+  	},
+  	_handleCheckGroupDetailsInGroup: function(){
+  	  var response = this.$.checkGroupDetailsInGroup.lastResponse;
+  	  if(response){
+  	    if(response.length > 0){
+  	      this.fire('group-manager-success', {"event":"deleteGroup","result":"can not delete(not leaf node)"});
+  	    }
+  	    else{
+  	      this._deleteGroupAndDetails(this.groupID);
+  	    }
+  	  }
+  	},
+  	_deleteGroupAndDetails: function(id){
   	  this.groupID = id;
       var query = {"where":{"GroupID":this.groupID},"fields":["id"]};
   		this.$.workerSelect.url = "/api/GroupDetails/?filter=" + encodeURI(JSON.stringify(query));		
