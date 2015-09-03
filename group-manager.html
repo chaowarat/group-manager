@@ -99,9 +99,8 @@
   		this.$.groupExist.generateRequest();
   	},
   	_handleGroupExist: function(){
-  		var response = this.$.groupExist.lastResponse[0];
-  		response['event'] = "checkGroupExist";
-  		this.fire('group-manager-success', response);
+  		var response = this.$.groupExist.lastResponse;
+  		this.fire('group-manager-success', {"event":"checkGroupExist","result":response});
   	},
   	checkGroupDetailExist: function(GroupID, RelatedID, options){
   	  if(!options){
