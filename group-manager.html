@@ -83,23 +83,15 @@
 	    progMax: Number,
 	    progValue: Number,
 	    tree: Object,
-	    requestQueue: Array
+	    requestQueue: Array,
+	    tmpGroupDetail: Object
     },
     ready: function() {
+      this.requestQueue = [];
 		  this._getTree('55e5471cb3db5be019b0e6a6');
     },
     echo: function(text){
       return 'Hello ' + text;
-    },
-    _insertTree: function(detail){
-      if(this.tree.detail.length > 0){
-        var tmp = JSON.parse(JSON.stringify(this.tree.detail));
-        this._findAndInsert(this.tree, '', null, tmp);
-        console.log(this.tree)
-      }
-      else{
-        this.tree.detail = detail;
-      }
     },
     _findAndInsert: function(obj, stack, id, detail){
       for (var property in obj) {
@@ -110,13 +102,15 @@
             if(id){
               if(property == 'id'){
                 if(obj[property] == id){
-                  obj.detail.push(detail);
+                  obj.detail.push(JSON.parse(JSON.stringify(detail)));
+                  return;
                 }
               }
             }
             else{
-              if(obj.detail.length == 0){
-                obj.detail = detail;
+              if(obj.detail){
+                obj.detail.push(JSON.parse(JSON.stringify(detail)));
+                return;
               }
             }
           }
@@ -136,19 +130,12 @@
       if(response){
         response = response[0];
         response['detail'] = [];
+        this.requestQueue.push(response);
+        
         if(!this.tree){
           this.tree = JSON.parse(JSON.stringify(response));
-          this._getTreeDetail(this.tree.id);
         }
-        else{
-          // find and append
-          this._insertTree(response);
-          this.requestQueue.push(response);
-          if(this.requestQueue.length > 0){
-            var detail = this.requestQueue.shift();
-            this._getTreeDetail(detail.id);
-          }
-        }
+        this._nextTask();
       }
     },
     _getTreeDetail: function(GroupID){
@@ -161,9 +148,23 @@
       for(var i = 0; i < response.length; i++){
         this.requestQueue.push(response[i]);
       }
+      this._nextTask();
+    },
+    _nextTask: function(){
       if(this.requestQueue.length > 0){
-        var detail = this.requestQueue[0];
-        this._checkTree(detail.RelatedID);
+        var task = this.requestQueue.shift();
+        if(task){
+          if(task.RelatedID){
+            this.tmpGroupDetail = JSON.parse(JSON.stringify(task));
+            this._checkTree(task.RelatedID);
+          }
+          else{
+            this._getTreeDetail(task.id);
+          }
+        }
+      }
+      else{ // all checked
+        console.log(this.tree)
       }
     },
     _checkTree: function(id){
@@ -175,24 +176,22 @@
       var response = this.$.checkTreeAjax.lastResponse;
       if(response){
         if(response.length > 0){ // detail is group
-          this.requestQueue.shift();
+          //console.log(detail)
           response = response[0];
-          this._getTree(response.id);
+          response['detail'] = [];
+          response['groupDetailID'] = this.tmpGroupDetail.id;
+          response['groupDetailGroupID'] = this.tmpGroupDetail.GroupID;
+          response['groupDetailRelatedID'] = this.tmpGroupDetail.RelatedID;
+            
+          this._findAndInsert(this.tree, '', null, response);
+          this.requestQueue.push(response);
         }
         else{
-          if(this.requestQueue.length > 0){
-            var detail = this.requestQueue.shift();
-            detail['detail'] = [];
-            this._findAndInsert(this.tree, '', detail.GroupID, detail);
-            console.log(this.tree)
-            this._getTreeDetail(detail.RelatedID);
-          }
+          this._findAndInsert(this.tree, '', this.tmpGroupDetail.GroupID, this.tmpGroupDetail);
         }
+        this._nextTask();
       }
     },
-    
-    
-    
   	checkGroupExist: function(relationType, options){
   	  if(!options){
   	    options = [];
